@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net472</TargetFramework>
+    <LangVersion>7.3</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>MoreInfo.Tests</AssemblyName>
+    <RootNamespace>MoreInfo.Tests</RootNamespace>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <NoWarn>$(NoWarn);NETSDK1138</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\MoreInfo\MoreInfo.csproj" />
+    <PackageReference Include="Lib.Harmony" Version="2.2.1" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net35</TargetFramework>
+    <AssemblyName>MoreInfo</AssemblyName>
+    <RootNamespace>MoreInfo</RootNamespace>
+    <LangVersion>7.3</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <Version>1.0.0</Version>
+    <AssemblyVersion>1.0.0.0</AssemblyVersion>
+    <FileVersion>1.0.0.0</FileVersion>
+    <Product>MoreInfo</Product>
+    <Company>MistyEye2088</Company>
+    <Description>Live cultivation art value descriptions for Amazing Cultivation Simulator.</Description>
+    <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+    <DebugType>none</DebugType>
+    <DebugSymbols>false</DebugSymbols>
+    <Optimize>true</Optimize>
+    <NoWarn>$(NoWarn);NETSDK1138</NoWarn>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Lib.Harmony" Version="2.2.1" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+</Project>
