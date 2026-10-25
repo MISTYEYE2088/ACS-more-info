@@ -1,5 +1,8 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Globalization;
+using System.IO;
 using System.Reflection;
 using System.Text;
 using HarmonyLib;
@@ -18,18 +21,47 @@ namespace MoreInfo
         private static bool prepareFailed;
 
         private static FieldInfo modifierField;
+        private static FieldInfo modifierPropertiesField;
         private static FieldInfo kindField;
         private static FieldInfo pNameField;
         private static FieldInfo isAddvField;
         private static FieldInfo valueField;
 
+        private static FieldInfo propertyNameField;
+        private static FieldInfo propertyAddVField;
+        private static FieldInfo propertyAddPField;
+        private static FieldInfo propertyBAddVField;
+        private static FieldInfo propertyBAddPField;
+        private static FieldInfo propertyDisplayNameField;
+        private static FieldInfo propertyDisplayValueField;
+        private static FieldInfo propertyDisplayValueRelativeField;
+
         private static PropertyInfo modifierMgrInstance;
         private static PropertyInfo propertyMgrInstance;
+        private static FieldInfo tfmgrInstanceField;
+        private static PropertyInfo tfmgrInstanceProperty;
+        private static PropertyInfo tfmgrLanguage;
         private static MethodInfo modifierGetDef;
         private static MethodInfo simpleDesc;
         private static MethodInfo propertyGetDef;
-        private static MethodInfo additionDesc;
         private static MethodInfo debugLog;
+
+        private sealed class Labels
+        {
+            public string Base;
+            public string Total;
+            public string Add;
+            public string Mult;
+            public string Join;
+            public string Wrap;
+            public string Suffix;
+
+            public string Line(string name, string value, bool isBase, bool isMult)
+            {
+                string stage = string.Format(Join, isBase ? Base : Total, isMult ? Mult : Add);
+                return string.Format(Wrap, name, stage, value);
+            }
+        }
 
         public static void OnInit()
         {
@@ -90,32 +122,60 @@ namespace MoreInfo
                 Type template = AccessTools.TypeByName("XiaWorld.EsotericaTemplateData");
                 Type data = AccessTools.TypeByName("XiaWorld.EsotericaData");
                 Type modifierDef = AccessTools.TypeByName("XiaWorld.ModifierDef");
+                Type propertyData = AccessTools.TypeByName("XiaWorld.ModifierPropertyData");
+                Type propertyDef = AccessTools.TypeByName("XiaWorld.PropertyDef");
                 Type modifierMgr = AccessTools.TypeByName("XiaWorld.ModifierMgr");
                 Type propertyMgr = AccessTools.TypeByName("XiaWorld.PropertyMgr");
                 Type npc = AccessTools.TypeByName("XiaWorld.Npc");
 
                 if (esotericaDef == null || template == null || data == null || modifierDef == null ||
-                    modifierMgr == null || propertyMgr == null || npc == null)
+                    propertyData == null || propertyDef == null || modifierMgr == null ||
+                    propertyMgr == null || npc == null)
                 {
                     Fail("required game types are missing");
                     return false;
                 }
 
                 modifierField = AccessTools.Field(esotericaDef, "Modifier");
+                modifierPropertiesField = AccessTools.Field(modifierDef, "Properties");
                 kindField = AccessTools.Field(template, "Kind");
                 pNameField = AccessTools.Field(template, "PName");
                 isAddvField = AccessTools.Field(template, "IsAddv");
                 valueField = AccessTools.Field(data, "Value");
+
+                propertyNameField = AccessTools.Field(propertyData, "Name");
+                propertyAddVField = AccessTools.Field(propertyData, "AddV");
+                propertyAddPField = AccessTools.Field(propertyData, "AddP");
+                propertyBAddVField = AccessTools.Field(propertyData, "BAddV");
+                propertyBAddPField = AccessTools.Field(propertyData, "BAddP");
+
+                propertyDisplayNameField = AccessTools.Field(propertyDef, "DisplayName");
+                propertyDisplayValueField = AccessTools.Field(propertyDef, "DisplayValue");
+                propertyDisplayValueRelativeField = AccessTools.Field(propertyDef, "DisplayValueRelative");
 
                 modifierMgrInstance = AccessTools.Property(modifierMgr, "Instance");
                 propertyMgrInstance = AccessTools.Property(propertyMgr, "Instance");
                 modifierGetDef = AccessTools.Method(modifierMgr, "GetDef", new[] { typeof(string) });
                 simpleDesc = AccessTools.Method(modifierDef, "GetSimpleDesc", new[] { typeof(float) });
                 propertyGetDef = AccessTools.Method(propertyMgr, "GetDef", new[] { typeof(string) });
-                additionDesc = AccessTools.Method(propertyMgr, "GetPropertyAddtionDesc", new[]
+
+                Type tfmgr = AccessTools.TypeByName("TFMgr");
+                if (tfmgr == null)
                 {
-                    typeof(string), npc, typeof(float), typeof(float), typeof(float), typeof(float)
-                });
+                    tfmgr = AccessTools.TypeByName("XiaWorld.TFMgr");
+                }
+                if (tfmgr != null)
+                {
+                    tfmgrInstanceField = AccessTools.Field(tfmgr, "Instance");
+                    if (tfmgrInstanceField == null)
+                    {
+                        tfmgrInstanceProperty = AccessTools.Property(tfmgr, "Instance");
+                    }
+                    tfmgrLanguage = AccessTools.Property(tfmgr, "Language");
+                    Log(tfmgrInstanceField != null || tfmgrInstanceProperty != null
+                        ? "TFMgr language binding ok."
+                        : "TFMgr language binding failed.");
+                }
 
                 Type debugType = AccessTools.TypeByName("UnityEngine.Debug");
                 if (debugType != null)
@@ -123,9 +183,14 @@ namespace MoreInfo
                     debugLog = AccessTools.Method(debugType, "Log", new[] { typeof(object) });
                 }
 
-                if (modifierField == null || kindField == null || pNameField == null || isAddvField == null ||
-                    valueField == null || modifierMgrInstance == null || propertyMgrInstance == null ||
-                    modifierGetDef == null || simpleDesc == null || propertyGetDef == null || additionDesc == null)
+                if (modifierField == null || modifierPropertiesField == null ||
+                    kindField == null || pNameField == null || isAddvField == null || valueField == null ||
+                    propertyNameField == null || propertyAddVField == null || propertyAddPField == null ||
+                    propertyBAddVField == null || propertyBAddPField == null ||
+                    propertyDisplayNameField == null || propertyDisplayValueField == null ||
+                    propertyDisplayValueRelativeField == null || modifierMgrInstance == null ||
+                    propertyMgrInstance == null || modifierGetDef == null || simpleDesc == null ||
+                    propertyGetDef == null)
                 {
                     Fail("required game members are missing");
                     return false;
@@ -145,6 +210,107 @@ namespace MoreInfo
         {
             prepareFailed = true;
             Log("MoreInfo disabled: " + reason);
+        }
+
+        private static Labels GetLabels()
+        {
+            if (IsChinese())
+            {
+                return new Labels
+                {
+                    Base = "基础",
+                    Total = "总值",
+                    Add = "加值",
+                    Mult = "倍率",
+                    Join = "{0}{1}",
+                    Wrap = "{0}（{1}）{2}",
+                    Suffix = "倍"
+                };
+            }
+
+            return new Labels
+            {
+                Base = "base",
+                Total = "total",
+                Add = "addition",
+                Mult = "multiplier",
+                Join = "{0} {1}",
+                Wrap = "{0} ({1}) {2}",
+                Suffix = "x"
+            };
+        }
+
+        private static bool IsChinese()
+        {
+            string language = GetGameLanguage();
+
+            if (string.IsNullOrEmpty(language))
+            {
+                LogOnce("game language unavailable, defaulting to English");
+                return false;
+            }
+
+            bool chinese = string.Equals(language, "cn", StringComparison.OrdinalIgnoreCase);
+            LogOnce("game language=" + language + " labels=" + (chinese ? "zh" : "en"));
+            return chinese;
+        }
+
+        private static string GetGameLanguage()
+        {
+            try
+            {
+                object manager = GetTfmgrInstance();
+                if (manager != null && tfmgrLanguage != null)
+                {
+                    string language = tfmgrLanguage.GetValue(manager, null) as string;
+                    if (!string.IsNullOrEmpty(language))
+                    {
+                        return language;
+                    }
+                }
+            }
+            catch
+            {
+            }
+
+            return ReadLanguageFile();
+        }
+
+        private static string ReadLanguageFile()
+        {
+            try
+            {
+                string file = Path.Combine(Directory.GetCurrentDirectory(), "language.txt");
+                if (!File.Exists(file))
+                {
+                    return null;
+                }
+
+                string text = File.ReadAllText(file);
+                int end = text.IndexOfAny(new[] { '\r', '\n' });
+                if (end >= 0)
+                {
+                    text = text.Substring(0, end);
+                }
+                return text.Trim();
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static object GetTfmgrInstance()
+        {
+            if (tfmgrInstanceField != null)
+            {
+                return tfmgrInstanceField.GetValue(null);
+            }
+            if (tfmgrInstanceProperty != null)
+            {
+                return tfmgrInstanceProperty.GetValue(null, null);
+            }
+            return null;
         }
 
         private static void EsotericaPostfix(object __instance, ref string __result)
@@ -174,7 +340,7 @@ namespace MoreInfo
                     return;
                 }
 
-                string body = Join(InvokeSimpleDesc(definition));
+                string body = BuildModifierBody(definition);
                 if (body == null)
                 {
                     return;
@@ -224,38 +390,13 @@ namespace MoreInfo
                     return;
                 }
 
-                object propertyManager = propertyMgrInstance.GetValue(null, null);
-                if (propertyManager == null)
-                {
-                    return;
-                }
+                object propertyDefinition = GetPropertyDefinition(propertyName);
+                string displayName = GetDisplayName(propertyDefinition, propertyName);
+                Labels labels = GetLabels();
 
-                if (propertyGetDef.Invoke(propertyManager, new object[] { propertyName }) == null)
-                {
-                    return;
-                }
-
-                object description = additionDesc.Invoke(propertyManager, new object[]
-                {
-                    propertyName,
-                    null,
-                    isAddv ? value : 0f,
-                    isAddv ? 0f : value,
-                    0f,
-                    0f
-                });
-
-                string line = description as string;
-                if (string.IsNullOrEmpty(line))
-                {
-                    return;
-                }
-
-                line = line.Trim();
-                if (line.Length == 0)
-                {
-                    return;
-                }
+                string line = isAddv
+                    ? labels.Line(displayName, FormatAbsolute(value, propertyDefinition), false, false)
+                    : labels.Line(displayName, FormatMultiplier(value, labels), false, true);
 
                 __result = Append(__result, line);
             }
@@ -265,40 +406,218 @@ namespace MoreInfo
             }
         }
 
-        private static IEnumerable<string> InvokeSimpleDesc(object definition)
+        private static string BuildModifierBody(object definition)
         {
-            return simpleDesc.Invoke(definition, new object[] { 1f }) as IEnumerable<string>;
-        }
+            List<string> propertyLines = new List<string>();
+            HashSet<string> propertyNames = new HashSet<string>();
+            Labels labels = GetLabels();
 
-        private static string Join(IEnumerable<string> lines)
-        {
-            if (lines == null)
+            object rawProperties = modifierPropertiesField.GetValue(definition);
+            IEnumerable properties = rawProperties as IEnumerable;
+            if (properties != null)
             {
-                return null;
+                foreach (object property in properties)
+                {
+                    if (property == null)
+                    {
+                        continue;
+                    }
+
+                    string name = propertyNameField.GetValue(property) as string;
+                    if (string.IsNullOrEmpty(name))
+                    {
+                        continue;
+                    }
+
+                    float addv = (float)propertyAddVField.GetValue(property);
+                    float addp = (float)propertyAddPField.GetValue(property);
+                    float baddv = (float)propertyBAddVField.GetValue(property);
+                    float baddp = (float)propertyBAddPField.GetValue(property);
+
+                    object propertyDefinition = GetPropertyDefinition(name);
+                    string displayName = GetDisplayName(propertyDefinition, name);
+                    propertyNames.Add(displayName);
+
+                    if (baddv != 0f)
+                    {
+                        propertyLines.Add(labels.Line(displayName, FormatAbsolute(baddv, propertyDefinition), true, false));
+                    }
+                    if (baddp != 0f)
+                    {
+                        propertyLines.Add(labels.Line(displayName, FormatMultiplier(baddp, labels), true, true));
+                    }
+                    if (addv != 0f)
+                    {
+                        propertyLines.Add(labels.Line(displayName, FormatAbsolute(addv, propertyDefinition), false, false));
+                    }
+                    if (addp != 0f)
+                    {
+                        propertyLines.Add(labels.Line(displayName, FormatMultiplier(addp, labels), false, true));
+                    }
+                }
             }
 
-            StringBuilder builder = new StringBuilder();
-            foreach (string raw in lines)
+            List<string> nativeLines = ReadNativeLines(definition);
+            return MergeLines(nativeLines, propertyLines, propertyNames);
+        }
+
+        private static List<string> ReadNativeLines(object definition)
+        {
+            List<string> result = new List<string>();
+            try
             {
-                if (string.IsNullOrEmpty(raw))
+                IEnumerable lines = simpleDesc.Invoke(definition, new object[] { 1f }) as IEnumerable;
+                if (lines == null)
                 {
+                    return result;
+                }
+
+                foreach (object raw in lines)
+                {
+                    string line = raw as string;
+                    if (string.IsNullOrEmpty(line))
+                    {
+                        continue;
+                    }
+                    line = line.Trim();
+                    if (line.Length > 0)
+                    {
+                        result.Add(line);
+                    }
+                }
+            }
+            catch (Exception e)
+            {
+                LogOnce("native: " + e.Message);
+            }
+
+            return result;
+        }
+
+        private static string MergeLines(List<string> nativeLines, List<string> propertyLines, HashSet<string> propertyNames)
+        {
+            StringBuilder builder = new StringBuilder();
+            bool inserted = propertyLines.Count == 0;
+
+            foreach (string line in nativeLines)
+            {
+                if (IsPropertyLine(line, propertyNames))
+                {
+                    if (!inserted)
+                    {
+                        AppendLines(builder, propertyLines);
+                        inserted = true;
+                    }
                     continue;
                 }
 
-                string line = raw.Trim();
-                if (line.Length == 0)
-                {
-                    continue;
-                }
+                AppendLine(builder, line);
+            }
 
-                if (builder.Length > 0)
-                {
-                    builder.Append('\n');
-                }
-                builder.Append(line);
+            if (!inserted)
+            {
+                AppendLines(builder, propertyLines);
             }
 
             return builder.Length == 0 ? null : builder.ToString();
+        }
+
+        private static bool IsPropertyLine(string line, HashSet<string> propertyNames)
+        {
+            foreach (string name in propertyNames)
+            {
+                if (name.Length > 0 && line.EndsWith("  " + name, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private static void AppendLines(StringBuilder builder, List<string> lines)
+        {
+            foreach (string line in lines)
+            {
+                AppendLine(builder, line);
+            }
+        }
+
+        private static void AppendLine(StringBuilder builder, string line)
+        {
+            if (string.IsNullOrEmpty(line))
+            {
+                return;
+            }
+            if (builder.Length > 0)
+            {
+                builder.Append('\n');
+            }
+            builder.Append(line);
+        }
+
+        private static object GetPropertyDefinition(string name)
+        {
+            try
+            {
+                object manager = propertyMgrInstance.GetValue(null, null);
+                if (manager == null)
+                {
+                    return null;
+                }
+                return propertyGetDef.Invoke(manager, new object[] { name });
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static string GetDisplayName(object definition, string fallback)
+        {
+            if (definition != null)
+            {
+                string name = propertyDisplayNameField.GetValue(definition) as string;
+                if (!string.IsNullOrEmpty(name))
+                {
+                    return name.Trim();
+                }
+            }
+            return fallback;
+        }
+
+        private static string FormatAbsolute(float value, object propertyDefinition)
+        {
+            string format = null;
+            if (propertyDefinition != null)
+            {
+                format = propertyDisplayValueRelativeField.GetValue(propertyDefinition) as string;
+                if (string.IsNullOrEmpty(format))
+                {
+                    format = propertyDisplayValueField.GetValue(propertyDefinition) as string;
+                }
+            }
+            if (string.IsNullOrEmpty(format))
+            {
+                format = "{0:N2}";
+            }
+
+            string text;
+            try
+            {
+                text = string.Format(CultureInfo.CurrentCulture, format, value);
+            }
+            catch
+            {
+                text = string.Format(CultureInfo.CurrentCulture, "{0:N2}", value);
+            }
+
+            return (value >= 0f ? "+" : "") + text;
+        }
+
+        private static string FormatMultiplier(float value, Labels labels)
+        {
+            string text = value.ToString("0.####", CultureInfo.CurrentCulture);
+            return (value >= 0f ? "+" : "") + text + labels.Suffix;
         }
 
         private static string Append(string original, string body)

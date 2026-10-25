@@ -28,16 +28,29 @@ namespace XiaWorld
     public class PropertyDef
     {
         public string Name;
+        public string DisplayName;
+        public string DisplayValue;
+        public string DisplayValueRelative;
+    }
+
+    public class ModifierPropertyData
+    {
+        public string Name;
+        public float AddV;
+        public float AddP;
+        public float BAddV;
+        public float BAddP;
     }
 
     public class ModifierDef
     {
-        public readonly List<string> Lines = new List<string>();
+        public readonly List<ModifierPropertyData> Properties = new List<ModifierPropertyData>();
+        public readonly List<string> NativeLines = new List<string>();
 
         [MethodImpl(MethodImplOptions.NoInlining)]
         public List<string> GetSimpleDesc(float scale = 1f)
         {
-            return new List<string>(Lines);
+            return new List<string>(NativeLines);
         }
     }
 
@@ -58,17 +71,20 @@ namespace XiaWorld
     {
         public static PropertyMgr Instance { get; set; }
 
+        public readonly Dictionary<string, PropertyDef> Defs = new Dictionary<string, PropertyDef>();
+
         public PropertyDef GetDef(string name)
         {
-            return name == "TestProp" ? new PropertyDef { Name = name } : null;
+            PropertyDef def;
+            return Defs.TryGetValue(name, out def) ? def : null;
         }
+    }
 
-        [MethodImpl(MethodImplOptions.NoInlining)]
-        public string GetPropertyAddtionDesc(string name, Npc npc, float addv = 0f, float addp = 0f, float baddv = 0f, float baddp = 0f)
-        {
-            float value = addv != 0f ? addv : addp;
-            return (value >= 0f ? "+" : "") + value.ToString("0.00") + "  测试属性";
-        }
+    public class TFMgr
+    {
+        public static TFMgr Instance = new TFMgr();
+
+        public string Language { get; set; }
     }
 
     public class EsotericaDef

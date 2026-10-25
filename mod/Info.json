@@ -1,9 +1,9 @@
 {
   "Name": "MoreInfo",
   "DisplayName": "功法数值显示 MoreInfo",
-  "Desc": "[作者]\n    MistyEye2088\n[简介]\n从游戏数据实时读取功法/秘术数值，显示在原有描述之后，不再硬编码。\n支持全部固定定义与随机生成的功法/秘术，属性名与数值格式均来自游戏本体（随语言、DLC与版本自动变化）。\n[依赖]\n需要 ModLoaderLite。\n[说明]\n请勿与旧版“功法数值显示”同时启用，否则会重复显示。\n\n[About]\nAppends live values read from game data to the original descriptions.\nCovers every fixed and randomly generated art/technique. Property names and number formats come from the game itself, so language packs, DLC and updates are followed automatically.\nRequires ModLoaderLite. Do not enable together with the old hardcoded mod.",
+  "Desc": "[作者]\n    MistyEye2088\n[简介]\n从游戏数据实时读取功法/秘术数值，追加在原有描述之后，不再硬编码。\n四项数值分别标注：基础加值(BAddV)、基础倍率(BAddP)、总值加值(AddV)、总值倍率(AddP)。加值使用游戏单位，倍率显示为“x倍”（0.1倍=+10%）。\n支持全部固定定义与随机生成的功法/秘术；属性名、单位与语言均由游戏本体提供，中英文自动切换。\n[依赖]\n需要 ModLoaderLite。\n[说明]\n请勿与旧版“功法数值显示”同时启用，否则会重复显示。\n\n[About]\nAppends live values read from game data to the original descriptions.\nShows four labelled components: base addition (BAddV), base multiplier (BAddP), total addition (AddV), total multiplier (AddP). Multipliers are shown as \"x\" (0.1x = +10%).\nCovers every fixed and randomly generated art/technique. Names, units and language come from the game.\nRequires ModLoaderLite. Do not enable together with the old hardcoded mod.",
   "GameVersion": 1.26,
-  "Version": 1.0,
+  "Version": 1.4,
   "Author": "MistyEye2088",
   "Tags": ["Usability"],
   "ParentModInfo": ["ModLoaderLite,5,heihei,ModLoaderLite,1997170546"]
